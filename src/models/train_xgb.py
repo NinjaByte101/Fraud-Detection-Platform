@@ -1,5 +1,6 @@
 import argparse
-
+import json
+import os
 import mlflow
 import mlflow.xgboost
 import numpy as np
@@ -82,7 +83,14 @@ def main(feature_set: str):
         }
         mlflow.log_metrics(metrics)
         mlflow.xgboost.log_model(model, name="model")
-
+        os.makedirs("models", exist_ok=True)
+        model.save_model("models/xgb.json")
+        with open("models/xgb_meta.json", "w") as f:
+            
+            json.dump(
+                {"features": cols, "threshold": float(threshold), "feature_set": feature_set},
+                f,
+            )
         for name, value in metrics.items():
             print(f"{name}: {value:.4f}")
 

@@ -1,0 +1,1 @@
+{"features": ["amount", "oldbalanceOrg", "oldbalanceDest", "amount_to_balance", "would_empty_orig", "dest_was_empty", "hour_of_day", "is_transfer", "orig_prev_count", "dest_prev_count", "dest_prev_amount"], "threshold": 0.8791942596435547, "feature_set": "history"}
