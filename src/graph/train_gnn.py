@@ -1,3 +1,4 @@
+python -m src.graph.train_gnn --local-onlyimport argparse
 import mlflow
 import numpy as np
 import torch
@@ -26,9 +27,9 @@ class GraphSAGE(torch.nn.Module):
         return self.out(x)
 
 
-def main(epochs=200, lr=0.005, patience=30):
+def main(epochs=200, lr=0.005, patience=30, local_only=False):
     torch.manual_seed(42)
-    data = load_elliptic()
+    data = load_elliptic(local_only=local_only)
     y_np, steps = data["y"], data["time_step"]
     train, valid, test = data["train_mask"], data["valid_mask"], data["test_mask"]
 
@@ -46,10 +47,12 @@ def main(epochs=200, lr=0.005, patience=30):
     model = GraphSAGE(x.shape[1]).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
 
+    run_name = "graphsage-local-only" if local_only else "graphsage"
     mlflow.set_experiment("fraud-elliptic")
-    with mlflow.start_run(run_name="graphsage"):
+    with mlflow.start_run(run_name=run_name):
         mlflow.log_params({"hidden": 128, "dropout": 0.3, "lr": lr, "epochs": epochs,
-                           "pos_weight": round(pos_weight, 2), "device": device})
+                           "pos_weight": round(pos_weight, 2), "device": device,
+                           "local_only": local_only})
 
         best_pr, best_epoch, best_scores = -1.0, 0, None
         for epoch in range(1, epochs + 1):
@@ -63,12 +66,12 @@ def main(epochs=200, lr=0.005, patience=30):
             with torch.no_grad():
                 scores = torch.softmax(model(x, edge_index), dim=1)[:, 1].cpu().numpy()
             valid_pr = average_precision_score(y_np[valid], scores[valid])
-            mlflow.log_metrics({"train_loss": float(loss), "valid_pr_auc": valid_pr}, step=epoch)
+            mlflow.log_metrics({"train_loss": loss.item(), "valid_pr_auc": valid_pr}, step=epoch)
 
             if valid_pr > best_pr:
                 best_pr, best_epoch, best_scores = valid_pr, epoch, scores
             if epoch % 10 == 0:
-                print(f"epoch {epoch:3d} | loss {loss:.4f} | valid PR-AUC {valid_pr:.3f}")
+                print(f"epoch {epoch:3d} | loss {loss.item():.4f} | valid PR-AUC {valid_pr:.3f}")
             if epoch - best_epoch >= patience:
                 print(f"early stop at epoch {epoch}, best was {best_epoch}")
                 break
@@ -79,8 +82,11 @@ def main(epochs=200, lr=0.005, patience=30):
         print(f"best epoch {best_epoch} | threshold {threshold:.4f}")
         print_results(results)
 
-    np.save("data/elliptic/gnn_scores.npy", best_scores)
+    suffix = "_local" if local_only else ""
+    np.save(f"data/elliptic/gnn_scores{suffix}.npy", best_scores)
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--local-only", action="store_true")
+    main(local_only=parser.parse_args().local_only)

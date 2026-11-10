@@ -9,7 +9,7 @@ VALID_LAST_STEP = 34  # steps 30-34 validation (early stopping, threshold); 35-4
 LABELS = {"1": 1, "2": 0, "unknown": -1}  # 1 = illicit, 0 = licit, -1 = unlabeled
 
 
-def load_elliptic(data_dir: str = DATA_DIR) -> dict:
+def load_elliptic(data_dir: str = DATA_DIR, local_only: bool = False) -> dict:
     features = pd.read_csv(f"{data_dir}/elliptic_txs_features.csv", header=None)
     classes = pd.read_csv(f"{data_dir}/elliptic_txs_classes.csv")
     edges = pd.read_csv(f"{data_dir}/elliptic_txs_edgelist.csv")
@@ -30,6 +30,9 @@ def load_elliptic(data_dir: str = DATA_DIR) -> dict:
 
     feature_cols = [c for c in df.columns if isinstance(c, int)]
     x = df[feature_cols].values.astype(np.float32)
+    if local_only:
+        x = x[:, :93]  # drop the 72 pre-aggregated neighbour features
+
     time_step = df["time_step"].values
     y = df["label"].values
 
@@ -53,3 +56,4 @@ if __name__ == "__main__":
     for name in ["train_mask", "valid_mask", "test_mask"]:
         mask = data[name]
         print(f"{name}: {int(mask.sum()):,} nodes, illicit rate {y[mask].mean():.3%}")
+    print("local-only features:", load_elliptic(local_only=True)["x"].shape[1])
