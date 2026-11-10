@@ -25,7 +25,7 @@ def drift_check(reference: pd.DataFrame, current: pd.DataFrame, name: str) -> fl
         current.sample(min(SAMPLE, len(current)), random_state=0).reset_index(drop=True),
         data_definition=definition,
     )
-    snapshot = Report([DataDriftPreset()]).run(cur, ref)
+    snapshot = Report([DataDriftPreset(drift_share=0.3)]).run(cur, ref)
 
     os.makedirs("reports", exist_ok=True)
     snapshot.save_html(f"reports/drift_{name}.html")

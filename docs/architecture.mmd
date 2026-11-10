@@ -1,0 +1,27 @@
+flowchart TB
+  P["Producer<br/>replays PaySim in time order"] --> K[("Kafka<br/>topic: transactions")]
+  K --> C["Consumer"]
+  C <-->|"POST /score"| API
+
+  subgraph Mini["Minikube (Kubernetes)"]
+    API["FastAPI scoring service<br/>XGBoost model"]
+    F[("Feast online store<br/>account history")]
+    D["Streamlit analyst dashboard"]
+    API --- F
+  end
+
+  C --> PRED[("predictions.db")]
+  PRED --> D
+  D --> CASES[("cases.db<br/>status + feedback labels")]
+
+  PRED --> DRIFT["Evidently drift report"]
+  DRIFT -->|"over 30% of features drifted"| FLAG["Retrain flag"]
+  FLAG -.-> TR
+
+  DATA[("PaySim data")] --> FE["Feature engineering<br/>pandas + Feast offline store"]
+  FE --> TR["XGBoost training<br/>tracked in MLflow"]
+  FE -->|"materialize"| F
+  TR --> MODEL["models/xgb.json"]
+  MODEL --> API
+
+  ELL[("Elliptic graph")] --> GNN["XGBoost, GraphSAGE, blend<br/>(offline experiment)"]
