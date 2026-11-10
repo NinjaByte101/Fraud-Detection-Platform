@@ -29,8 +29,42 @@ SERVING_COLS = [
     "is_transfer",
 ]
 
+
+
 FEATURE_SETS = {"all": FEATURE_COLS, "serving": SERVING_COLS}
 
+
+HISTORY_COLS = [
+    "orig_prev_count",
+    "dest_prev_count",
+    "dest_prev_amount",
+]
+
+FEATURE_SETS["history"] = SERVING_COLS + HISTORY_COLS
+
+
+def add_history_features(risky: pd.DataFrame, full: pd.DataFrame) -> pd.DataFrame:
+    """Count what each account did in earlier steps (never the current step)."""
+    out = risky.copy()
+
+    for role, name_col in [("orig", "nameOrig"), ("dest", "nameDest")]:
+        per_step = (
+            full.groupby([name_col, "step"])
+            .agg(n=("amount", "size"), amt=("amount", "sum"))
+            .reset_index()
+            .sort_values([name_col, "step"])
+        )
+        # cumulative total minus this step's own part = strictly earlier steps
+        per_step[f"{role}_prev_count"] = (
+            per_step.groupby(name_col)["n"].cumsum() - per_step["n"]
+        )
+        per_step[f"{role}_prev_amount"] = (
+            per_step.groupby(name_col)["amt"].cumsum() - per_step["amt"]
+        )
+        keep = [name_col, "step", f"{role}_prev_count", f"{role}_prev_amount"]
+        out = out.merge(per_step[keep], on=[name_col, "step"], how="left")
+
+    return out
 def load_risky_transactions(path: str) -> pd.DataFrame:
     """Load PaySim and keep only the types that can contain fraud."""
     df = pd.read_csv(path)

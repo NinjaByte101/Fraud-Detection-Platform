@@ -3,13 +3,14 @@ import argparse
 import mlflow
 import mlflow.xgboost
 import numpy as np
+import pandas as pd
 import xgboost as xgb
 from sklearn.metrics import average_precision_score, precision_recall_curve
 
 from src.features.build_features import (
     FEATURE_SETS,
     add_features,
-    load_risky_transactions,
+    add_history_features,
     time_split,
 )
 
@@ -25,7 +26,12 @@ def best_f1_threshold(y_true, scores):
 
 def main(feature_set: str):
     cols = FEATURE_SETS[feature_set]
-    df = add_features(load_risky_transactions(DATA_PATH))
+
+    # History features need the full data (every transaction type),
+    # then we keep only TRANSFER and CASH_OUT for modelling.
+    full = pd.read_csv(DATA_PATH)
+    risky = add_features(full[full["type"].isin(["TRANSFER", "CASH_OUT"])].copy())
+    df = add_history_features(risky, full)
     train, valid, test = time_split(df)
 
     X_train, y_train = train[cols], train["isFraud"]
