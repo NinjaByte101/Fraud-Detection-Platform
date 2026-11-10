@@ -1,4 +1,4 @@
-python -m src.graph.train_gnn --local-onlyimport argparse
+import argparse
 import mlflow
 import numpy as np
 import torch
