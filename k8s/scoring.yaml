@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scoring
+spec:
+  replicas: 1  # one replica on purpose: the service keeps account history in memory
+  selector:
+    matchLabels:
+      app: scoring
+  template:
+    metadata:
+      labels:
+        app: scoring
+    spec:
+      containers:
+        - name: scoring
+          image: fraud-scoring:0.1
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scoring
+spec:
+  selector:
+    app: scoring
+  ports:
+    - port: 8000
+      targetPort: 8000
