@@ -141,7 +141,7 @@ Use three terminals. Restart the scoring service before every replay, because it
 ```powershell
 # terminal A
 uvicorn src.serving.app:app --port 8000
-# terminal B (wait for "Ready - start the producer now")
+# Terminal B wait for "read then start the producer now"
 python -m src.streaming.consumer --max 5000
 # terminal C
 python -m src.streaming.producer --limit 5000 --rate 200
